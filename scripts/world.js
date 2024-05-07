@@ -1,18 +1,27 @@
 import * as THREE from 'three';
-import { SimplexNoise } from 'three/examples/jsm/math/SimplexNoise.js';
-import { RNG } from './rng';
-import { blocks, resources } from './blocks';
-
-const geometry = new THREE.BoxGeometry();
+import { WorldChunk } from './worldChunk';
 
 export class World extends THREE.Group {
+
   /**
-   * @type {{
-  *  id: number,
-  *  instanceId: number
-  * }[][][]}
-  */
-  data = [];
+   * Whether or not we want to load the chunks asynchronously
+   */
+  asyncLoading = true;
+
+  /**
+   * The number of chunks to render around the player.
+   * When this is set to 0, the chunk the player is on
+   * is the only one that is rendered. If it is set to 1,
+   * the adjaccent chunks are rendered; if set to 2, the
+   * chunks adjacent to those are rendered, and so on.
+   */
+
+  drawDistance = 3;
+
+  chunkSize = {
+    width: 64,
+    height: 32
+  };
 
   params = {
     seed: 0,
@@ -23,215 +32,149 @@ export class World extends THREE.Group {
     }
   };
 
-  constructor(size = { width: 64, height: 32 }) {
+  constructor(seed = 0) {
     super();
-    this.size = size;
+    this.seed = seed;
   }
 
-  // Generates the world data and meshes
   generate() {
-    const rng = new RNG(this.params.seed);
-    this.initializeTerrain();
-    this.generateResources(rng);
-    this.generateTerrain(rng);
-    this.generateMeshes();
-  }
+    this.disposeChunks();
 
-  // Initializing the world terrain data
-  initializeTerrain() {
-    this.data = [];
-    for (let x = 0; x < this.size.width; x++) {
-      const slice = [];
-      for (let y = 0; y < this.size.height; y++) {
-        const row = [];
-        for (let z = 0; z < this.size.width; z++) {
-          row.push({
-            id: blocks.empty.id,
-            instanceId: null
-          });
-        }
-        slice.push(row);
+    for (let x = -this.drawDistance; x <= this.drawDistance; x++) {
+      for (let z = -this.drawDistance; z <= this.drawDistance; z++) {
+        const chunk = new WorldChunk(this.chunkSize, this.params);
+        chunk.position.set(x * this.chunkSize.width, 0, z * this.chunkSize.width);
+        chunk.userData = { x, z };
+        chunk.generate();
+        this.add(chunk);
       }
-      this.data.push(slice);
     }
   }
 
-  generateResources(rng) {
-    const simplex = new SimplexNoise(rng);
-    resources.forEach(resources => {
-      for (let x = 0; x < this.size.width; x++) {
-        for (let y = 0; y < this.size.height; y++) {
-          for (let z = 0; z < this.size.width; z++) {
-            const value = simplex.noise3d(
-              x / resources.scale.x,
-              y / resources.scale.y, 
-              z / resources.scale.z);
-            if (value > resources.scarcity) {
-              this.setBlockId(x, y, z, resources.id);
-            }
-          }
-        }
+  update(player) {
+    const visibleChunks = this.getVisivleChunks(player);
+    const chunkToAdd = this.getChunksToAdd(visibleChunks);
+    this.removeUnusedChunks(visibleChunks);
+
+    for (const chunk of chunkToAdd) {
+      this.generateChunk(chunk.x, chunk.z);
+    }
+  }
+
+  getVisivleChunks(player) {
+    const visibleChunks = [];
+
+    const coords = this.worldToChunkCoords(
+      player.position.x,
+      player.position.y - (player.height / 2),
+      player.position.z
+    );
+
+    const chunkX = coords.chunk.x;
+    const chunkZ = coords.chunk.z;
+
+    for(let x = chunkX - this.drawDistance; x <= chunkX + this.drawDistance; x++) {
+      for(let z = chunkZ - this.drawDistance; z <= chunkZ + this.drawDistance; z++) {
+        visibleChunks.push({x, z});
       }
+    }
+
+    return visibleChunks;
+  }
+
+  getChunksToAdd(visibleChunks) {
+    // Filter down the visible chunks to those not already in the world
+    return visibleChunks.filter((chunk) => {
+      const chunkExists = this.children
+        .map((obj) => obj.userData)
+        .find(({x, z}) => (
+          chunk.x === x && chunk.z === z
+        ));
+
+      return !chunkExists;
+    })
+  }
+
+  removeUnusedChunks(visibleChunks) {
+    // Filter down the visible chunks to those not already in the world
+    const chunksToRemove = this.children.filter((chunk) => {
+      const { x, z } = chunk.userData;
+      const chunkExists = visibleChunks
+        .find((visibleChunks) => (
+          visibleChunks.x === x && visibleChunks.z === z
+        ));
+
+      return !chunkExists;
     });
-  }
 
-  generateTerrain(rng) {
-    const simplex = new SimplexNoise(rng);
-    for (let x = 0; x < this.size.width; x++) {
-      for (let z = 0; z < this.size.width; z++) {
-        const value = simplex.noise(
-          x / this.params.terrain.scale, 
-          z / this.params.terrain.scale
-        );
-
-        const scaleNoise = this.params.terrain.offset +
-          this.params.terrain.magnitude * value;
-
-        let height = Math.floor(this.size.height * scaleNoise);
-
-
-        height = Math.max(0, Math.min(height, this.size.height - 1));
-
-        
-        for (let y = 0; y <= this.size.height; y++) {
-          if (y < height && this.getBlock(x, y, z).id === blocks.empty.id) {
-            this.setBlockId(x, y, z, blocks.dirt.id);
-          } else if (y === height) {
-            this.setBlockId(x, y, z, blocks.grass.id);
-          } else if (y > height){
-            this.setBlockId(x, y, z, blocks.empty.id);
-          }
-        }
-      }
+    for (const chunk of chunksToRemove) {
+      chunk.disposeInstances();
+      this.remove(chunk);
+      console.log(`Removing chunk at X: ${chunk.userData.x} Z: ${chunk.userData.z}`);
     }
   }
 
+  generateChunk(x, z) {
+    const chunk = new WorldChunk(this.chunkSize, this.params);
+        chunk.position.set(x * this.chunkSize.width, 0, z * this.chunkSize.width);
+        chunk.userData = { x, z };
 
-  // Generates the 3D representation of the world from the world data
-  generateMeshes() {
-    this.clear();
-    
-    const maxCount = this.size.width * this.size.width * this.size.height;
-    
-    const meshes = {};
-    Object.values(blocks)
-      .filter(blockType => blockType.id !== blocks.empty.id)
-      .forEach(blockType => {
-        const mesh = new THREE.InstancedMesh(geometry, blockType.material, maxCount);
-        mesh.name = blockType.name;
-        mesh.count = 0;
-        mesh.castShadow = true;
-        mesh.receiveShadow = true;
-        meshes[blockType.id] = mesh;
-      })
-
-    const matrix = new THREE.Matrix4();
-    for (let x = 0; x < this.size.width; x++) {
-      for (let y = 0; y < this.size.height; y++) {
-        for (let z = 0; z < this.size.width; z++) {
-          const blockId = this.getBlock(x, y, z).id;
-          
-          if (blockId === blocks.empty.id) continue;
-
-          const mesh = meshes[blockId];
-          const instanceId = mesh.count;
-
-          if (!this.isBlockObscured(x, y, z)) {
-            matrix.setPosition(x, y, z);
-            mesh.setMatrixAt(instanceId, matrix);
-            this.setBlockInstanceId(x, y, z, instanceId);
-            mesh.count++;
-          }
+        if (this.asyncLoading) {
+          // Load chunk asynchronously
+          requestIdleCallback(chunk.generate.bind(chunk), { timeout: 1000 });
+        } else {
+          chunk.generate();
         }
-      }
-    }
-
-    this.add(...Object.values(meshes));
+        this.add(chunk);
+        console.log(`Adding chunk at X: ${chunk.userData.x} Z: ${chunk.userData.z}`);
   }
 
-  /**
-   * Gets the block data at (x, y, z)
-   * @param {number} x 
-   * @param {number} y 
-   * @param {number} z 
-   * @return {{id: number, instanceId: number}}
-   */
   getBlock(x, y, z) {
-    if (this.inBounds(x, y, z)) {
-      return this.data[x][y][z];
+    const coords = this.worldToChunkCoords(x, y, z);
+    const chunk = this.getChunk(coords.chunk.x, coords.chunk.z);
+
+    if (chunk && chunk.loaded) {
+      return chunk.getBlock(
+        coords.block.x,
+        coords.block.y,
+        coords.block.z
+      );
     } else {
       return null;
     }
   }
 
-  /**
-   * Sets the block id for the block at (x, y, z)
-   * @param {number} x
-   * @param {number} y
-   * @param {number} z
-   * @param {number} id
-   */
-  setBlockId(x, y, z, id) {
-    if (this.inBounds(x, y, z)) {
-      this.data[x][y][z].id = id;
+  worldToChunkCoords(x, y, z) {
+    const chunkCoords = {
+      x: Math.floor(x / this.chunkSize.width),
+      z: Math.floor(z / this.chunkSize.width)
+    };
+
+    const blockCoords = {
+      x: x - this.chunkSize.width * chunkCoords.x,
+      y,
+      z: z - this.chunkSize.width * chunkCoords.z
+    };
+
+    return {
+      chunk: chunkCoords,
+      block: blockCoords
     }
   }
 
-  /**
-   * Sets the block instance id for the block at (x, y, z)
-   * @param {number} x
-   * @param {number} y
-   * @param {number} z
-   * @param {number} instanceId
-   */
-  setBlockInstanceId(x, y, z, instanceId) {
-    if (this.inBounds(x, y, z)) {
-      this.data[x][y][z].instanceId = instanceId;
-    }
+  getChunk(chunkX, chunkZ) {
+    return this.children.find((chunk) => (
+      chunk.userData.x === chunkX &&
+      chunk.userData.z === chunkZ
+    ));
   }
 
-  /**
-   * Checks if the (x, y, z) coordinates are within bounds
-   * @param {number} x
-   * @param {number} y
-   * @param {number} z
-   * @return {boolean}
-   */
-  inBounds(x, y, z) {
-    if (x >= 0 && x < this.size.width &&
-      y >= 0 && y < this.size.height &&
-      z >= 0 && z < this.size.width) {
-      return true; 
-    } else {
-      return false;
-    }
-  }
-
-  /**
-   * Returns true if this block is completely hidden by other blocks
-   * @param {number} x 
-   * @param {number} y 
-   * @param {number} z 
-   * @returns {boolean}
-   */
-  isBlockObscured(x, y, z) {
-    const up = this.getBlock(x, y + 1, z)?.id ?? blocks.empty.id;
-    const down = this.getBlock(x, y - 1, z)?.id ?? blocks.empty.id;
-    const left = this.getBlock(x + 1, y, z)?.id ?? blocks.empty.id;
-    const right = this.getBlock(x - 1, y, z)?.id ?? blocks.empty.id;
-    const forward = this.getBlock(x, y, z + 1)?.id ?? blocks.empty.id;
-    const back = this.getBlock(x, y, z - 1)?.id ?? blocks.empty.id;
-
-    // If any of the block's sides is exposed, it is not obscured
-    if (up === blocks.empty.id ||
-      down === blocks.empty.id ||
-      left === blocks.empty.id ||
-      right === blocks.empty.id ||
-      forward === blocks.empty.id ||
-      back === blocks.empty.id) {
-      return false;  
-    } else {
-      return true;
-    }
+  disposeChunks() {
+    this.traverse((chunk) => {
+      if (chunk.disposeInstances) {
+        chunk.disposeInstances();
+      }
+    });
+    this.clear();
   }
 }
