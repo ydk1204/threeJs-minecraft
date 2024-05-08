@@ -119,7 +119,7 @@ export class WorldChunk extends THREE.Group {
       .filter(blockType => blockType.id !== blocks.empty.id)
       .forEach(blockType => {
         const mesh = new THREE.InstancedMesh(geometry, blockType.material, maxCount);
-        mesh.name = blockType.name;
+        mesh.name = blockType.id;
         mesh.count = 0;
         mesh.castShadow = true;
         mesh.receiveShadow = true;
@@ -163,6 +163,84 @@ export class WorldChunk extends THREE.Group {
     } else {
       return null;
     }
+  }
+
+  /**
+   * Adds a new block at (x, y, z) of type 'blockId'
+   * @param {number} x
+   * @param {number} y
+   * @param {number} z
+   * @param {number} blockId
+   */
+  addBlock(x, y, z, blockId) {
+    if (this.getBlock(x, y, z).id === blocks.empty.id) {
+      this.setBlockId(x, y, z, blockId);
+      this.addBlockInstance(x, y, z);
+    }
+  }
+
+  /**
+   * Removes the block at (x, y, z) and sets it ti empty
+   * @param {number} x
+   * @param {number} y
+   * @param {number} z
+   */
+  removeBlock(x, y, z) {
+    const block = this.getBlock(x, y, z);
+    if (block && block.id !== blocks.empty.id) {
+      this.deleteBlockInstance(x, y, z);
+      this.setBlockId(x, y, z, blocks.empty.id);
+    }
+  }
+
+    /**
+   * Create a new instance for the block at (x, y, z)
+   * @param {number} x
+   * @param {number} y
+   * @param {number} z
+   */
+  addBlockInstance(x, y, z) {
+    const block = this.getBlock(x, y, z);
+
+    if(block && block.id !== blocks.empty.id && block.instanceId === null) {
+      const mesh = this.children.find((instanceMesh) => instanceMesh.name === block.id);
+      const instanceId = mesh.count++;
+      this.setBlockInstanceId(x, y, z, instanceId);
+
+      const matrix = new THREE.Matrix4();
+      matrix.setPosition(x, y, z);
+      mesh.setMatrixAt(instanceId, matrix);
+      mesh.instanceMatrix.needsUpdate = true;
+      mesh.computeBoundingSphere();
+    }
+  }
+
+  deleteBlockInstance(x, y, z) {
+    const block = this.getBlock(x, y, z);
+
+    if (block.id === blocks.empty.id || block.instanceId === null) return;
+
+    const mesh = this.children.find((instanceMesh) => instanceMesh.name === block.id);
+    const instanceId = block.instanceId;
+
+    const lastMatrix = new THREE.Matrix4();
+    mesh.getMatrixAt(mesh.count - 1, lastMatrix);
+
+    const v = new THREE.Vector3();
+    v.setFromMatrixPosition(lastMatrix);
+    this.setBlockInstanceId(v.x, v.y, v.z, instanceId);
+
+    mesh.setMatrixAt(instanceId, lastMatrix);
+
+    // Decrease the mesh count to "delete" the block
+    mesh.count--;
+
+    // Notify the instanced mesh we updated the instance matrix
+    // Also re-compute the bounding sphere so raycasting works
+    mesh.instanceMatrix.needsUpdate = true;
+    mesh.computeBoundingSphere();
+
+    this.setBlockInstanceId(x, y, z, null);
   }
 
   /**
@@ -222,15 +300,15 @@ export class WorldChunk extends THREE.Group {
     const right = this.getBlock(x - 1, y, z)?.id ?? blocks.empty.id;
     const forward = this.getBlock(x, y, z + 1)?.id ?? blocks.empty.id;
     const back = this.getBlock(x, y, z - 1)?.id ?? blocks.empty.id;
-
+  
     // If any of the block's sides is exposed, it is not obscured
     if (up === blocks.empty.id ||
-      down === blocks.empty.id ||
-      left === blocks.empty.id ||
-      right === blocks.empty.id ||
-      forward === blocks.empty.id ||
-      back === blocks.empty.id) {
-      return false;  
+        down === blocks.empty.id || 
+        left === blocks.empty.id || 
+        right === blocks.empty.id || 
+        forward === blocks.empty.id || 
+        back === blocks.empty.id) {
+      return false;
     } else {
       return true;
     }
