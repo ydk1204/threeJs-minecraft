@@ -16,11 +16,12 @@ export class WorldChunk extends THREE.Group {
 
 
 
-  constructor(size, params) {
+  constructor(size, params, dataStore) {
     super();
     this.loaded = false;
     this.size = size;
     this.params = params;
+    this.dataStore = dataStore;
   }
 
   // Generates the world data and meshes
@@ -31,6 +32,7 @@ export class WorldChunk extends THREE.Group {
     this.initializeTerrain();
     this.generateResources(rng);
     this.generateTerrain(rng);
+    this.loadPlayerChanges();
     this.generateMeshes();
 
     this.loaded = true;
@@ -107,6 +109,21 @@ export class WorldChunk extends THREE.Group {
     }
   }
 
+  /**
+   * Pulls any changes from the data store and applies them to the data model
+   */
+  loadPlayerChanges() {
+    for (let x = 0; x < this.size.width; x++) {
+      for (let y = 0; y < this.size.height; y++) {
+        for (let z = 0; z < this.size.width; z++) {
+          if (this.dataStore.contains(this.position.x, this.position.z, x, y, z)) {
+            const blockId = this.dataStore.get(this.position.x, this.position.z, x, y, z);
+            this.setBlockId(x, y, z, blockId);
+          }
+        }
+      }
+    }
+  }
 
   // Generates the 3D representation of the world from the world data
   generateMeshes() {
@@ -176,6 +193,7 @@ export class WorldChunk extends THREE.Group {
     if (this.getBlock(x, y, z).id === blocks.empty.id) {
       this.setBlockId(x, y, z, blockId);
       this.addBlockInstance(x, y, z);
+      this.dataStore.set(this.position.x, this.position.z, x, y, z, blockId);
     }
   }
 
@@ -190,6 +208,7 @@ export class WorldChunk extends THREE.Group {
     if (block && block.id !== blocks.empty.id) {
       this.deleteBlockInstance(x, y, z);
       this.setBlockId(x, y, z, blocks.empty.id);
+      this.dataStore.set(this.position.x, this.position.z, x, y, z, blocks.empty.id);
     }
   }
 

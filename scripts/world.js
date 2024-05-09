@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { WorldChunk } from './worldChunk';
+import { DataStore } from './dataStore';
 
 export class World extends THREE.Group {
 
@@ -32,17 +33,20 @@ export class World extends THREE.Group {
     }
   };
 
+  dataStore = new DataStore();
+
   constructor(seed = 0) {
     super();
     this.seed = seed;
   }
 
   generate() {
+    this.dataStore.clear();
     this.disposeChunks();
 
     for (let x = -this.drawDistance; x <= this.drawDistance; x++) {
       for (let z = -this.drawDistance; z <= this.drawDistance; z++) {
-        const chunk = new WorldChunk(this.chunkSize, this.params);
+        const chunk = new WorldChunk(this.chunkSize, this.params, this.dataStore);
         chunk.position.set(x * this.chunkSize.width, 0, z * this.chunkSize.width);
         chunk.userData = { x, z };
         chunk.generate();
@@ -115,7 +119,7 @@ export class World extends THREE.Group {
   }
 
   generateChunk(x, z) {
-    const chunk = new WorldChunk(this.chunkSize, this.params);
+    const chunk = new WorldChunk(this.chunkSize, this.params, this.dataStore);
         chunk.position.set(x * this.chunkSize.width, 0, z * this.chunkSize.width);
         chunk.userData = { x, z };
 
@@ -192,12 +196,12 @@ export class World extends THREE.Group {
     if (chunk) {
       chunk.addBlock(coords.block.x, coords.block.y, coords.block.z, blockId);
 
-      this.revealBlock(x - 1, y, z);
-      this.revealBlock(x + 1, y, z);
-      this.revealBlock(x, y - 1, z);
-      this.revealBlock(x, y + 1, z);
-      this.revealBlock(x, y, z - 1);
-      this.revealBlock(x, y, z + 1);
+      this.hideBlock(x - 1, y, z);
+      this.hideBlock(x + 1, y, z);
+      this.hideBlock(x, y - 1, z);
+      this.hideBlock(x, y + 1, z);
+      this.hideBlock(x, y, z - 1);
+      this.hideBlock(x, y, z + 1);
     }
   }
 
@@ -218,12 +222,12 @@ export class World extends THREE.Group {
       chunk.removeBlock(coords.block.x, coords.block.y, coords.block.z);
 
       // Reveal any adjacent blocks that may have been exposed after the block at (x,y,z) was removed
-      this.hideBlock(x - 1, y, z);
-      this.hideBlock(x + 1, y, z);
-      this.hideBlock(x, y - 1, z);
-      this.hideBlock(x, y + 1, z);
-      this.hideBlock(x, y, z - 1);
-      this.hideBlock(x, y, z + 1);
+      this.revealBlock(x - 1, y, z);
+      this.revealBlock(x + 1, y, z);
+      this.revealBlock(x, y - 1, z);
+      this.revealBlock(x, y + 1, z);
+      this.revealBlock(x, y, z - 1);
+      this.revealBlock(x, y, z + 1);
     }
   }
 
