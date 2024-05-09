@@ -17,6 +17,10 @@ const textures =  {
   stone: loadTexture('textures/stone.png'),
   coalOre: loadTexture('textures/coal_ore.png'),
   ironOre: loadTexture('textures/iron_ore.png'),
+  leaves: loadTexture('textures/leaves.png'),
+  treeSide: loadTexture('textures/tree_side.png'),
+  treeTop: loadTexture('textures/tree_top.png'),
+  sand: loadTexture('textures/sand.png'),
 }
 
 export const blocks = {
@@ -67,7 +71,38 @@ export const blocks = {
     scarcity: 0.9,
     material: new THREE.MeshLambertMaterial({ map: textures.ironOre })
   },
-}
+  tree: {
+    id: 6,
+    name: 'tree',
+    visible: true,
+    material: [
+      new THREE.MeshLambertMaterial({ map: textures.treeSide }), // right
+      new THREE.MeshLambertMaterial({ map: textures.treeSide }), // left
+      new THREE.MeshLambertMaterial({ map: textures.treeTop }), // top
+      new THREE.MeshLambertMaterial({ map: textures.treeTop }), // bottom
+      new THREE.MeshLambertMaterial({ map: textures.treeSide }), // front
+      new THREE.MeshLambertMaterial({ map: textures.treeSide })  // back
+    ]
+  },
+  leaves: {
+    id: 7,
+    name: 'leaves',
+    visible: true,
+    material: new THREE.MeshLambertMaterial({ map: textures.leaves })
+  },
+  sand: {
+    id: 8,
+    name: 'sand',
+    visible: true,
+    material: new THREE.MeshLambertMaterial({ map: textures.sand })
+  },
+  cloud: {
+    id: 9,
+    name: 'cloud',
+    visible: true,
+    material: new THREE.MeshBasicMaterial({ color: 0xf0f0f0 })
+  }
+};
 
 export const resources = [
   blocks.stone,
