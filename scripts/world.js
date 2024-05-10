@@ -55,10 +55,44 @@ export class World extends THREE.Group {
   constructor(seed = 0) {
     super();
     this.seed = seed;
+
+    document.addEventListener('keydown', (ev) => {
+      switch (ev.code) {
+        case 'KeyU':
+          this.save();
+          break;
+        case 'KeyL':
+          this.load();
+          break;
+      }
+    })
   }
 
-  generate() {
-    this.dataStore.clear();
+  /**
+   * Saves the world data to local storage
+   */
+  save() {
+    localStorage.setItem('minecraft_params', JSON.stringify(this.params));
+    localStorage.setItem('minecraft_data', JSON.stringify(this.dataStore.data));
+    document.getElementById('status').innerHTML = 'GAME SAVED';
+    setTimeout(() => document.getElementById('status').innerHTML = '', 3000);
+  }
+
+  /**
+   * Loads the world data from local storage
+   */
+  load() {
+    this.params = JSON.parse(localStorage.getItem('minecraft_params'));
+    this.dataStore.data = JSON.parse(localStorage.getItem('minecraft_data'));
+    document.getElementById('status').innerHTML = 'GAME LOADED';
+    setTimeout(() => document.getElementById('status').innerHTML = '', 3000);
+    this.generate();
+  }
+
+  generate(clearCache = false) {
+    if (clearCache) {
+      this.dataStore.clear();
+    }
     this.disposeChunks();
 
     for (let x = -this.drawDistance; x <= this.drawDistance; x++) {
@@ -131,7 +165,7 @@ export class World extends THREE.Group {
     for (const chunk of chunksToRemove) {
       chunk.disposeInstances();
       this.remove(chunk);
-      console.log(`Removing chunk at X: ${chunk.userData.x} Z: ${chunk.userData.z}`);
+      // console.log(`Removing chunk at X: ${chunk.userData.x} Z: ${chunk.userData.z}`);
     }
   }
 
@@ -147,7 +181,7 @@ export class World extends THREE.Group {
           chunk.generate();
         }
         this.add(chunk);
-        console.log(`Adding chunk at X: ${chunk.userData.x} Z: ${chunk.userData.z}`);
+        // console.log(`Adding chunk at X: ${chunk.userData.x} Z: ${chunk.userData.z}`);
   }
 
   getBlock(x, y, z) {

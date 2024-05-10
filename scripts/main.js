@@ -6,6 +6,7 @@ import { createUI } from './ui';
 import { Player } from './player';
 import { Physics } from './physics';
 import { blocks } from './blocks';
+import { ModelLoader } from './modelLoader';
 
 const stats = new Stats();
 document.body.appendChild(stats.dom);
@@ -32,13 +33,18 @@ controls.update();
 // Scene Setup
 const scene = new THREE.Scene();
 scene.fog = new THREE.Fog(0x80a0e0, 50, 100);
+
 const world = new World();
 world.generate();
 scene.add(world);
 
 const player = new Player(scene);
-
 const physics = new Physics(scene);
+
+const modelLoader = new ModelLoader();
+modelLoader.loadModels((models) => {
+  player.tool.setMesh(models.pickaxe);
+})
 
 const sun = new THREE.DirectionalLight();
 
@@ -66,14 +72,15 @@ function setupLights() {
 function onMouseDown(event) {
   if (player.controls.isLocked && player.selectedCoords) {
     if (player.activeBlockId === blocks.empty.id) {
-      console.log(`removing block at ${JSON.stringify(player.selectedCoords)}`);
+      // console.log(`removing block at ${JSON.stringify(player.selectedCoords)}`);
       world.removeBlock(
         player.selectedCoords.x,
         player.selectedCoords.y,
         player.selectedCoords.z
       );
+      player.tool.startAnimation();
     } else {
-      console.log(`add block at ${JSON.stringify(player.selectedCoords)}`);
+      // console.log(`add block at ${JSON.stringify(player.selectedCoords)}`);
       world.addBlock(
         player.selectedCoords.x,
         player.selectedCoords.y,
