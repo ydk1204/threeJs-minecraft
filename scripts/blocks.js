@@ -19,8 +19,14 @@ const textures =  {
   ironOre: loadTexture('textures/iron_ore.png'),
   leaves: loadTexture('textures/leaves.png'),
   treeSide: loadTexture('textures/tree_side.png'),
-  treeTop: loadTexture('textures/tree_top.png'),
+  treeTop: loadTexture('textures/tree_side.png'),
+  jungleTreeSide: loadTexture('textures/jungle_tree_side.png'),
+  jungleTreeTop: loadTexture('textures/jungle_tree_top.png'),
+  jungleLeaves: loadTexture('textures/jungle_leaves.png'),
+  cactusSide: loadTexture('textures/cactus_side.png'),
+  cactusTop: loadTexture('textures/cactus_top.png'),
   sand: loadTexture('textures/sand.png'),
+  snow: loadTexture('textures/snow.png'),
 }
 
 export const blocks = {
@@ -101,7 +107,45 @@ export const blocks = {
     name: 'cloud',
     visible: true,
     material: new THREE.MeshBasicMaterial({ color: 0xf0f0f0 })
-  }
+  },
+  snow: {
+    id: 10,
+    name: 'snow',
+    visible: true,
+    material: new THREE.MeshLambertMaterial({ map: textures.snow })
+  },
+  jungleTree: {
+    id: 11,
+    name: 'jungleTree',
+    visible: true,
+    material: [
+      new THREE.MeshLambertMaterial({ map: textures.jungleTreeSide }), // right
+      new THREE.MeshLambertMaterial({ map: textures.jungleTreeSide }), // left
+      new THREE.MeshLambertMaterial({ map: textures.jungleTreeTop }), // top
+      new THREE.MeshLambertMaterial({ map: textures.jungleTreeTop }), // bottom
+      new THREE.MeshLambertMaterial({ map: textures.jungleTreeSide }), // front
+      new THREE.MeshLambertMaterial({ map: textures.jungleTreeSide })  // back
+    ]
+  },
+  jungleLeaves: {
+    id: 12,
+    name: 'jungleLeaves',
+    visible: true,
+    material: new THREE.MeshLambertMaterial({ map: textures.jungleLeaves })
+  },
+  cactus: {
+    id: 13,
+    name: 'cactus',
+    visible: true,
+    material: [
+      new THREE.MeshLambertMaterial({ map: textures.cactusSide }), // right
+      new THREE.MeshLambertMaterial({ map: textures.cactusSide }), // left
+      new THREE.MeshLambertMaterial({ map: textures.cactusTop }), // top
+      new THREE.MeshLambertMaterial({ map: textures.cactusTop }), // bottom
+      new THREE.MeshLambertMaterial({ map: textures.cactusSide }), // front
+      new THREE.MeshLambertMaterial({ map: textures.cactusSide })  // back
+    ]
+  },
 };
 
 export const resources = [

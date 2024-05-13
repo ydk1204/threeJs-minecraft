@@ -49,16 +49,17 @@ modelLoader.loadModels((models) => {
 const sun = new THREE.DirectionalLight();
 
 function setupLights() {
-  sun.position.set(50, 50, 50);
+  sun.intensity = 4;
+  sun.position.set(20, 20, 20);
   sun.castShadow = true;
-  sun.shadow.camera.left = -100;
-  sun.shadow.camera.right = 100;
-  sun.shadow.camera.bottom = -100;
-  sun.shadow.camera.top = 100;
+  sun.shadow.camera.left = -50;
+  sun.shadow.camera.right = 50;
+  sun.shadow.camera.bottom = -50;
+  sun.shadow.camera.top = 50;
   sun.shadow.camera.near = 0.1;
-  sun.shadow.camera.far = 200;
-  sun.shadow.bias = -0.0001;
-  sun.shadow.mapSize = new THREE.Vector2(2048, 2048);
+  sun.shadow.camera.far = 100;
+  sun.shadow.bias = -0.0005;
+  sun.shadow.mapSize = new THREE.Vector3(2048, 2048);
   scene.add(sun);
   scene.add(sun.target);
 
